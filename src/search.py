@@ -1,10 +1,12 @@
-"""Persistence helpers for the coursework search tool."""
+"""Persistence and single-word lookup helpers for the coursework search tool."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 import json
+
+from src.indexer import tokenise
 
 
 def save_index(index_data: dict[str, Any], destination: str | Path) -> None:
@@ -20,3 +22,20 @@ def load_index(source: str | Path) -> dict[str, Any]:
 
     source_path = Path(source)
     return json.loads(source_path.read_text(encoding="utf-8"))
+
+
+def normalise_single_term(raw_term: str) -> str:
+    """Convert user input into exactly one searchable term."""
+
+    terms = tokenise(raw_term)
+    if len(terms) != 1:
+        raise ValueError("Please provide exactly one searchable word.")
+    return terms[0]
+
+
+def get_word_postings(index_data: dict[str, Any], raw_term: str) -> tuple[str, dict[str, Any]]:
+    """Return the postings list for a single term."""
+
+    term = normalise_single_term(raw_term)
+    postings = index_data.get("index", {}).get(term, {})
+    return term, postings

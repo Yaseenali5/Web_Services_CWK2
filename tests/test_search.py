@@ -1,4 +1,4 @@
-"""Tests for persistence helpers."""
+"""Tests for persistence and single-word lookup helpers."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pytest
 
 from src.crawler import CrawledPage
 from src.indexer import build_inverted_index
-from src.search import load_index, save_index
+from src.search import get_word_postings, load_index, normalise_single_term, save_index
 
 
 @pytest.fixture
@@ -52,3 +52,15 @@ def test_save_index_creates_missing_parent_directories(sample_index: dict, tmp_p
     save_index(sample_index, destination)
 
     assert destination.exists()
+
+
+def test_get_word_postings_returns_empty_for_missing_word(sample_index: dict) -> None:
+    term, postings = get_word_postings(sample_index, "missing")
+
+    assert term == "missing"
+    assert postings == {}
+
+
+def test_normalise_single_term_rejects_multiword_input() -> None:
+    with pytest.raises(ValueError, match="exactly one searchable word"):
+        normalise_single_term("good friends")
