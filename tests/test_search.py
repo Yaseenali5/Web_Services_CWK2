@@ -1,4 +1,4 @@
-"""Tests for persistence and single-word lookup helpers."""
+"""Tests for persistence and search helpers."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pytest
 
 from src.crawler import CrawledPage
 from src.indexer import build_inverted_index
-from src.search import get_word_postings, load_index, normalise_single_term, save_index
+from src.search import find_pages, get_word_postings, load_index, normalise_single_term, save_index
 
 
 @pytest.fixture
@@ -64,3 +64,21 @@ def test_get_word_postings_returns_empty_for_missing_word(sample_index: dict) ->
 def test_normalise_single_term_rejects_multiword_input() -> None:
     with pytest.raises(ValueError, match="exactly one searchable word"):
         normalise_single_term("good friends")
+
+
+def test_find_pages_uses_and_semantics_for_multiword_queries(sample_index: dict) -> None:
+    results = find_pages(sample_index, "good friends")
+
+    assert [result.url for result in results] == [
+        "https://quotes.toscrape.com/page/1/",
+        "https://quotes.toscrape.com/page/2/",
+    ]
+
+
+def test_find_pages_returns_empty_when_any_term_is_missing(sample_index: dict) -> None:
+    assert find_pages(sample_index, "good missing") == []
+
+
+def test_find_pages_rejects_empty_queries(sample_index: dict) -> None:
+    with pytest.raises(ValueError, match="Query cannot be empty"):
+        find_pages(sample_index, "   ")
