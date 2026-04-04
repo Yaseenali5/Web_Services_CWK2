@@ -82,6 +82,35 @@ def test_build_command_uses_crawler_indexer_and_persistence(
     assert "Index built successfully: 1 pages, 2 unique terms" in captured.out
 
 
+def test_build_command_reports_failure_when_no_pages_are_crawled(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    saved_payloads: list[tuple[dict, Path]] = []
+
+    class FakeCrawler:
+        def __init__(self, politeness_window: float) -> None:
+            assert politeness_window == 6.0
+
+        def crawl(self) -> list[CrawledPage]:
+            return []
+
+    def fake_save_index(index_data: dict, destination: Path) -> None:
+        saved_payloads.append((index_data, destination))
+
+    monkeypatch.setattr(main_module, "WebsiteCrawler", FakeCrawler)
+    monkeypatch.setattr(main_module, "save_index", fake_save_index)
+
+    shell = SearchShell(index_path=tmp_path / "index.json")
+    shell.run_command("build")
+
+    captured = capsys.readouterr()
+    assert "Build failed: no pages were crawled." in captured.out
+    assert shell.index_data is None
+    assert saved_payloads == []
+
+
 def test_print_command_formats_matching_postings(tmp_path: Path, capsys) -> None:
     shell = SearchShell(index_path=tmp_path / "index.json")
     shell.index_data = {

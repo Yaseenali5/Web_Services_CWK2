@@ -51,6 +51,13 @@ class SearchShell:
         print("Building the search index. This will take around a minute because of the politeness window.")
         crawler = WebsiteCrawler(politeness_window=6.0)
         pages = crawler.crawl()
+        if not pages:
+            print(
+                "Build failed: no pages were crawled. Check your network connection "
+                "or the target website availability."
+            )
+            return True
+
         self.index_data = build_inverted_index(pages)
         save_index(self.index_data, self.index_path)
 

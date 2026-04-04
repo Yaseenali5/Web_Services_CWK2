@@ -194,6 +194,8 @@ class WebsiteCrawler:
     def _canonicalise_url(self, url: str) -> str:
         parsed_url = urlparse(url)
         path = parsed_url.path or "/"
+        if path in {"/page/1", "/page/1/"}:
+            path = "/"
         canonical = parsed_url._replace(query="", fragment="", path=path)
         return urlunparse(canonical)
 

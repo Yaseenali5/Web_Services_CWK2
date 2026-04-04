@@ -11,6 +11,7 @@ from src.crawler import WebsiteCrawler
 
 HOME_URL = "https://quotes.toscrape.com/"
 PAGE_2_URL = "https://quotes.toscrape.com/page/2/"
+PAGE_1_ALIAS_URL = "https://quotes.toscrape.com/page/1/"
 AUTHOR_URL = "https://quotes.toscrape.com/author/Albert-Einstein"
 
 HOME_HTML = """
@@ -100,6 +101,12 @@ def test_parse_document_extracts_quote_text_and_allowed_links() -> None:
     assert "mark twain" in parsed_document.page.content.lower()
     assert "friends books" in parsed_document.page.content.lower()
     assert parsed_document.links == [PAGE_2_URL]
+
+
+def test_page_one_alias_canonicalises_to_home_url() -> None:
+    crawler = WebsiteCrawler()
+
+    assert crawler._canonicalise_url(PAGE_1_ALIAS_URL) == HOME_URL
 
 
 def test_fetch_html_respects_politeness_window() -> None:
