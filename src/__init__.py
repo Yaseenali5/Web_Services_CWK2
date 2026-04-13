@@ -1,1 +1,0 @@
-"""Coursework search tool package."""
