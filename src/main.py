@@ -1,4 +1,4 @@
-"""Command-line interface for the coursework search tool."""
+"""Command-line interface for the quote search tool."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import sys
 
 from src.crawler import WebsiteCrawler
 from src.indexer import build_inverted_index
-from src.search import find_pages, get_word_postings, load_index, save_index
+from src.search import find_pages, get_word_postings, load_index, save_index, suggest_terms
 
 
 INDEX_PATH = Path(__file__).resolve().parent.parent / "data" / "index.json"
@@ -70,7 +70,7 @@ class SearchShell:
 
     def handle_load(self, _: str) -> bool:
         if not self.index_path.exists():
-            print(f"No saved index found at {self.index_path}. Run 'build' first.")
+            print(f"No saved index found at {self.index_path}. Run 'build' first")
             return True
 
         self.index_data = load_index(self.index_path)
@@ -124,7 +124,11 @@ class SearchShell:
             return True
 
         if not results:
-            print("No pages matched that query.")
+            suggestions = suggest_terms(self.index_data, arguments)
+            if suggestions:
+                print(f"No pages matched that query. Did you mean: {', '.join(suggestions)}?")
+            else:
+                print("No pages matched that query.")
             return True
 
         print(f"Found {len(results)} matching page(s):")
@@ -145,6 +149,7 @@ class SearchShell:
         print("- load")
         print("- print <word>")
         print("- find <query>")
+        print('- find "<phrase>"')
         print("- help")
         print("- exit")
         return True
@@ -157,15 +162,16 @@ class SearchShell:
         if self.index_data is not None:
             return True
 
-        print("No index is currently loaded. Run 'build' or 'load' first.")
+        print("No index is currently loaded. Run 'build' or 'load' first")
         return False
 
 
 def run_interactive_shell() -> None:
     shell = SearchShell()
-    print("Coursework Search Tool")
+    print("Quote Search Tool")
     print("Type 'help' to see the available commands.")
 
+    # Keep command parsing in one place so interactive and single-command modes share behavior.
     while True:
         try:
             keep_running = shell.run_command(input("> "))

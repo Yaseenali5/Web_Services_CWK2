@@ -1,4 +1,4 @@
-"""Indexing logic for the coursework search tool."""
+"""Indexing logic for the quote search tool."""
 
 from __future__ import annotations
 
@@ -49,6 +49,7 @@ def build_inverted_index(
         for position, token in enumerate(tokens):
             page_term_positions[token].append(position)
 
+        # Store postings by term so lookup is direct during print/find commands.
         for token, positions in page_term_positions.items():
             index[token][page.url] = {
                 "frequency": len(positions),

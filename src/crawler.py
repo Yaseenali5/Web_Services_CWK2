@@ -1,4 +1,4 @@
-"""Website crawler for the coursework search tool."""
+"""Crawler for the quote search tool."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ QUOTE_PAGE_PATTERN = re.compile(r"^/$|^/page/\d+/?$")
 
 @dataclass(slots=True)
 class CrawledPage:
-    """Structured representation of a crawled page."""
+    """Structured text extracted from one crawled page."""
 
     url: str
     title: str
@@ -35,7 +35,7 @@ class ParsedDocument:
 
 
 class WebsiteCrawler:
-    """Crawl the target site while respecting the politeness window."""
+    """Crawl quote listing pages while respecting the politeness window."""
 
     def __init__(
         self,
@@ -52,14 +52,14 @@ class WebsiteCrawler:
         self.timeout = timeout
         self.session = session or requests.Session()
         self.session.headers.update(
-            {"User-Agent": "coursework-search-tool/1.0 (+https://quotes.toscrape.com/)"}
+            {"User-Agent": "quote-search-tool/1.0 (+https://quotes.toscrape.com/)"}
         )
         self.sleep_func = sleep_func
         self.clock = clock
         self._last_request_started_at: float | None = None
 
     def crawl(self, start_url: str | None = None) -> list[CrawledPage]:
-        """Crawl the allowed site pages starting from the seed URL."""
+        """Crawl allowed site pages starting from the seed URL."""
 
         seed_url = self._canonicalise_url(start_url or self.base_url)
         queue: deque[str] = deque([seed_url])
@@ -86,6 +86,8 @@ class WebsiteCrawler:
             for discovered_url in parsed_document.links:
                 if discovered_url in visited_urls or discovered_url in queued_urls:
                     continue
+
+                # Queue only canonical, in-scope URLs so the crawl stays focused on quote pages.
                 queue.append(discovered_url)
                 queued_urls.add(discovered_url)
 
@@ -103,6 +105,7 @@ class WebsiteCrawler:
         except requests.RequestException:
             return None
         finally:
+            # Failed requests still count as requests for politeness purposes.
             self._last_request_started_at = request_started_at
 
         return response.text
@@ -196,6 +199,7 @@ class WebsiteCrawler:
         parsed_url = urlparse(url)
         path = parsed_url.path or "/"
         if path in {"/page/1", "/page/1/"}:
+            # The site exposes page one both as "/" and "/page/1/"; index it once.
             path = "/"
         canonical = parsed_url._replace(query="", fragment="", path=path)
         return urlunparse(canonical)

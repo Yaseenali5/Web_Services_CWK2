@@ -17,6 +17,7 @@ from src.indexer import build_inverted_index
 from src.main import SearchShell
 from src.search import find_pages, get_word_postings, load_index, normalise_single_term, save_index
 from src.search import SearchResult
+from src.search import suggest_terms
 
 
 @pytest.fixture
@@ -83,6 +84,12 @@ def test_find_pages_uses_and_semantics_for_multiword_queries(sample_index: dict)
     ]
 
 
+def test_find_pages_supports_quoted_phrase_queries(sample_index: dict) -> None:
+    results = find_pages(sample_index, '"good friends"')
+
+    assert [result.url for result in results] == ["https://quotes.toscrape.com/page/1/"]
+
+
 def test_find_pages_uses_tfidf_to_rank_rarer_terms_higher() -> None:
     pages = [
         CrawledPage(
@@ -119,6 +126,10 @@ def test_find_pages_returns_empty_when_any_term_is_missing(sample_index: dict) -
 def test_find_pages_rejects_empty_queries(sample_index: dict) -> None:
     with pytest.raises(ValueError, match="Query cannot be empty"):
         find_pages(sample_index, "   ")
+
+
+def test_suggest_terms_returns_close_vocabulary_matches(sample_index: dict) -> None:
+    assert suggest_terms(sample_index, "frends") == ["friends"]
 
 
 def test_run_command_reports_unknown_command(tmp_path: Path, capsys) -> None:
@@ -294,3 +305,18 @@ def test_find_command_reports_empty_query(tmp_path: Path, capsys) -> None:
 
     captured = capsys.readouterr()
     assert "Query cannot be empty." in captured.out
+
+
+def test_find_command_suggests_close_terms_for_empty_results(
+    sample_index: dict,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    shell = SearchShell(index_path=tmp_path / "index.json")
+    shell.index_data = sample_index
+
+    shell.run_command("find frends")
+
+    captured = capsys.readouterr()
+    assert "No pages matched that query." in captured.out
+    assert "Did you mean: friends?" in captured.out
