@@ -1,10 +1,15 @@
-"""Tests for persistence, search helpers, and CLI search behavior."""
+"""Tests for persistence, search helpers and CLI search behavior."""
 
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 import pytest
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import src.main as main_module
 from src.crawler import CrawledPage
@@ -76,6 +81,35 @@ def test_find_pages_uses_and_semantics_for_multiword_queries(sample_index: dict)
         "https://quotes.toscrape.com/page/1/",
         "https://quotes.toscrape.com/page/2/",
     ]
+
+
+def test_find_pages_uses_tfidf_to_rank_rarer_terms_higher() -> None:
+    pages = [
+        CrawledPage(
+            url="https://quotes.toscrape.com/page/1/",
+            title="Common only",
+            page_type="quote_listing",
+            content="good good good",
+        ),
+        CrawledPage(
+            url="https://quotes.toscrape.com/page/2/",
+            title="Rare and common",
+            page_type="quote_listing",
+            content="good good uncommon",
+        ),
+        CrawledPage(
+            url="https://quotes.toscrape.com/page/3/",
+            title="Rare only",
+            page_type="quote_listing",
+            content="uncommon",
+        ),
+    ]
+    index_data = build_inverted_index(pages)
+
+    results = find_pages(index_data, "good uncommon")
+
+    assert [result.url for result in results] == ["https://quotes.toscrape.com/page/2/"]
+    assert results[0].score > results[0].total_frequency
 
 
 def test_find_pages_returns_empty_when_any_term_is_missing(sample_index: dict) -> None:
@@ -214,6 +248,16 @@ def test_print_command_formats_matching_postings(tmp_path: Path, capsys) -> None
     assert "positions=[0, 2]" in captured.out
 
 
+def test_print_command_reports_missing_argument(tmp_path: Path, capsys) -> None:
+    shell = SearchShell(index_path=tmp_path / "index.json")
+    shell.index_data = {"pages": {}, "index": {}}
+
+    shell.run_command("print")
+
+    captured = capsys.readouterr()
+    assert "Usage: print <word>" in captured.out
+
+
 def test_find_command_formats_ranked_results(tmp_path: Path, monkeypatch, capsys) -> None:
     shell = SearchShell(index_path=tmp_path / "index.json")
     shell.index_data = {"pages": {}, "index": {}}
@@ -225,7 +269,7 @@ def test_find_command_formats_ranked_results(tmp_path: Path, monkeypatch, capsys
             SearchResult(
                 url="https://quotes.toscrape.com/",
                 title="Quotes to Scrape",
-                score=3.5,
+                score=4.5,
                 total_frequency=3,
                 matched_terms=["good", "friends"],
                 proximity_span=1,
@@ -238,5 +282,15 @@ def test_find_command_formats_ranked_results(tmp_path: Path, monkeypatch, capsys
 
     captured = capsys.readouterr()
     assert "Found 1 matching page(s):" in captured.out
-    assert "score=3.500" in captured.out
+    assert "score=4.500" in captured.out
     assert "proximity span=1" in captured.out
+
+
+def test_find_command_reports_empty_query(tmp_path: Path, capsys) -> None:
+    shell = SearchShell(index_path=tmp_path / "index.json")
+    shell.index_data = {"pages": {}, "index": {}}
+
+    shell.run_command("find   ")
+
+    captured = capsys.readouterr()
+    assert "Query cannot be empty." in captured.out
