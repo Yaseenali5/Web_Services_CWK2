@@ -102,8 +102,9 @@ class WebsiteCrawler:
             response.raise_for_status()
         except requests.RequestException:
             return None
+        finally:
+            self._last_request_started_at = request_started_at
 
-        self._last_request_started_at = request_started_at
         return response.text
 
     def parse_document(self, url: str, html: str) -> ParsedDocument:

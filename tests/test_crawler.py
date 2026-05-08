@@ -138,6 +138,28 @@ def test_fetch_html_handles_request_failure_gracefully() -> None:
     assert crawler.fetch_html(HOME_URL) is None
 
 
+def test_failed_requests_still_count_for_politeness_window() -> None:
+    fake_clock = FakeClock()
+    fake_session = FakeSession(
+        {
+            HOME_URL: requests.RequestException("boom"),
+            PAGE_2_URL: FakeResponse(PAGE_2_HTML),
+        }
+    )
+    crawler = WebsiteCrawler(
+        session=fake_session,
+        sleep_func=fake_clock.sleep,
+        clock=fake_clock.now,
+    )
+
+    failed_html = crawler.fetch_html(HOME_URL)
+    successful_html = crawler.fetch_html(PAGE_2_URL)
+
+    assert failed_html is None
+    assert successful_html is not None
+    assert fake_clock.sleep_calls == [6.0]
+
+
 def test_crawl_visits_each_allowed_page_once() -> None:
     fake_session = FakeSession(
         {
